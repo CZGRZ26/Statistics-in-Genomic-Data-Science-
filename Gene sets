@@ -1,0 +1,72 @@
+#Dependencies
+#This document depends on the following packages:
+
+  library(devtools)
+  library(Biobase)
+  library(goseq)
+  library(DESeq2)
+
+#To install these packages you can use the code (or if you are compiling the document, remove the eval=FALSE from the chunk.)
+
+install.packages(c("devtools","MatrixEQTL"))
+source("http://www.bioconductor.org/biocLite.R")
+biocLite(c("Biobase","goseq","DESeq2"))
+
+#Download the data
+#Here we are going to follow along with the tutorial on goseq. You can see what genomes are supported by this package
+
+head(supportedGenomes())
+head(supportedGeneIDs())
+
+#An example of a goseq analysis
+
+#Load the data
+#Here we load the example from the goseq package.
+
+temp_data =read.table(system.file("extdata","Li_sum.txt",
+                                     package="goseq"),sep="\t",
+                                     header=TRUE,
+                                     stringsAsFactors=FALSE)
+expr= temp_data[,-1]
+rownames(expr) = temp_data[,1]
+expr = expr[rowMeans(expr) > 5,]
+grp=factor(rep(c("Control","Treated"),times=c(4,3)))
+pdata  = data.frame(grp)
+
+#Perform a differential expression analysis
+
+#Now we perform a differential expression analysis for the group variable with DESeq2
+
+de = DESeqDataSetFromMatrix(expr, pdata, ~grp)
+de_fit = DESeq(de)
+de_results = results(de_fit)
+
+#Get the differentially expressed genes after FDR correction
+
+genes = as.integer(de_results$padj < 0.05)
+not_na = !is.na(genes)
+names(genes) = rownames(expr)
+genes = genes[not_na]
+
+#Pick the right genome
+#Here we look at some of the automatically supported genomes
+
+head(supportedGenomes(),n=12)[,1:4]
+
+#We need to set up a weighting function for all the genes in that genome
+
+pwf=nullp(genes,"hg19","ensGene")
+
+head(pwf)
+
+#Perform the enrichment analysis parametrically
+#Here we use a parametric test to look for differences in enrichment with respect to different categories. This is the 2 x 2 table approach. You can also use random sampling to define the null distribution by setting the parameters method="Sampling" and repcnt=1000 for the number of null repititions.
+
+GO.wall=goseq(pwf,"hg19","ensGene")
+head(GO.wall)
+
+#Limiting yourself to a single category you are interested in
+#Suppose there is a particular category or function you are interested in. You can limit to just that category
+
+GO.MF=goseq(pwf,"hg19","ensGene",test.cats=c("GO:MF"))
+head(GO.MF)
