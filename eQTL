@@ -1,0 +1,105 @@
+#Dependencies
+#This document depends on the following packages:
+
+  library(devtools)
+  library(Biobase)
+  library(MatrixEQTL)
+
+#To install these packages you can use the code (or if you are compiling the document, remove the eval=FALSE from the chunk.)
+
+install.packages(c("devtools","MatrixEQTL"))
+source("http://www.bioconductor.org/biocLite.R")
+biocLite(c("Biobase"))
+
+#Download the data
+#Here we are going to follow along with the tutorial on MatrixEQTL. First we find the files
+
+base.dir = find.package("MatrixEQTL")
+SNP_file_name = paste(base.dir, "/data/SNP.txt", sep="");#SNP data
+expression_file_name = paste(base.dir, "/data/GE.txt", sep="")#expression data
+covariates_file_name = paste(base.dir, "/data/Covariates.txt", sep="")#covariate data
+output_file_name = tempfile()
+
+#Next we load the data so we can see it
+
+expr = read.table(expression_file_name,sep="\t",
+                  header=T,row.names=1)
+expr[1,]
+
+snps = read.table(SNP_file_name,sep="\t",
+                  header=T,row.names=1)
+snps[1,]
+
+cvrt = read.table(covariates_file_name,sep="\t",
+                  header=T,row.names=1)
+
+#eQTL is linear regession
+#The simplest eQTL analysis just computes linear regression models for each SNP/gene pair.
+
+e1 = as.numeric(expr[1,])
+s1 = as.numeric(snps[1,])
+lm1 = lm(e1 ~ s1)
+tidy(lm1)
+
+#We can visualize the data and the model fits
+
+plot(e1 ~ jitter(s1),
+     col=(s1+1),xaxt="n",xlab="Genotype",ylab="Expression")
+axis(1,at=c(0:2),labels=c("AA","Aa","aa"))
+lines(lm1$fitted ~ s1,type="b",pch=15,col="darkgrey")
+
+#Fitting many eQTL models with MatrixEQTL
+
+#Set general parameters
+#We need to set up the p-value cutoff and the error model (in this case assuming independent errors)
+
+pvOutputThreshold = 1e-2
+errorCovariance = numeric()
+useModel = modelLINEAR
+
+#Set the data up
+#Now we need to set up the snp and gene expression data in the special format required by the MatrixEQTL package
+
+snps = SlicedData$new()
+snps$fileDelimiter = "\t"     # the TAB character
+snps$fileOmitCharacters = "NA" # denote missing values;
+snps$fileSkipRows = 1          # one row of column labels
+snps$fileSkipColumns = 1       # one column of row labels
+snps$fileSliceSize = 2000     # read file in pieces of 2,000 rows
+snps$LoadFile( SNP_file_name )
+
+gene = SlicedData$new()
+gene$fileDelimiter = "\t"      # the TAB character
+gene$fileOmitCharacters = "NA" # denote missing values;
+gene$fileSkipRows = 1          # one row of column labels
+gene$fileSkipColumns = 1      # one column of row labels
+gene$fileSliceSize = 2000      # read file in pieces of 2,000 rows
+gene$LoadFile(expression_file_name)
+
+cvrt = SlicedData$new()
+
+#Running MatrixEQTL
+#We can now run the code to calculate the eQTL that we are interested in
+
+me = Matrix_eQTL_engine(
+    snps = snps,
+    gene = gene,
+    cvrt = cvrt,
+    output_file_name = NULL,
+    pvOutputThreshold = pvOutputThreshold,
+    useModel = useModel, 
+    errorCovariance = errorCovariance, 
+    verbose = TRUE,
+    pvalue.hist = TRUE,
+    min.pv.by.genesnp = FALSE,
+    noFDRsaveMemory = FALSE);
+
+#Understanding the results
+#We can make a plot of all the p-values from the tests
+
+plot(me)
+
+#We can also figure look at the number and type of eQTL
+
+me$all$neqtls
+me$all$eqtls
