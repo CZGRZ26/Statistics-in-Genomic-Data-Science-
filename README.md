@@ -1,7 +1,6 @@
 # Statistics-in-Genomic-Data-Science-
 Cheat sheets for different statistic techniques used in genomic data science.
 This course is structured to hit the key conceptual ideas of normalization, exploratory analysis, linear modeling, testing, and multiple testing that arise over and over in genomic studies.
-Statistics for Genomic Data Science
 
 This repository documents my applied learning in statistical methods for genomic data science. It brings together concepts, worked examples, and code implementations that are foundational to the analysis of high-dimensional biological data such as gene expression and genomic variation.
 
